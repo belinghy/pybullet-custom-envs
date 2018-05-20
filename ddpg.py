@@ -5,6 +5,7 @@ from torch.optim import Adam
 from torch.autograd import Variable
 import torch.nn.functional as F
 from common import use_cuda
+from flagrun_weights import *
 
 
 def soft_update(target, source, tau):
@@ -18,20 +19,29 @@ def hard_update(target, source):
 
 
 class Actor(nn.Module):
-    def __init__(self, hidden_size, num_inputs, action_space):
+    def __init__(self, num_inputs, action_space):
         super(Actor, self).__init__()
         self.action_space = action_space
         num_outputs = action_space.shape[0]
 
-        self.linear1 = nn.Linear(num_inputs, hidden_size)
-        self.ln1 = nn.LayerNorm(hidden_size)
+        l1_size = 256
+        l2_size = 128
 
-        self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.ln2 = nn.LayerNorm(hidden_size)
+        self.linear1 = nn.Linear(num_inputs, l1_size)
+        self.ln1 = nn.LayerNorm(l1_size)
 
-        self.mu = nn.Linear(hidden_size, num_outputs)
-        self.mu.weight.data.mul_(0.1)
-        self.mu.bias.data.mul_(0.1)
+        self.linear2 = nn.Linear(l1_size, l2_size)
+        self.ln2 = nn.LayerNorm(l2_size)
+
+        self.mu = nn.Linear(l2_size, num_outputs)
+
+        # Init
+        self.linear1.weight.data = torch.from_numpy(weights_dense1_w.T)
+        self.linear1.bias.data = torch.from_numpy(weights_dense1_b.T)
+        self.linear2.weight.data = torch.from_numpy(weights_dense2_w.T)
+        self.linear2.bias.data = torch.from_numpy(weights_dense2_b.T)
+        self.mu.weight.data = torch.from_numpy(weights_final_w.T)
+        self.mu.bias.data = torch.from_numpy(weights_final_b.T)
 
     def forward(self, inputs):
         x = inputs
@@ -46,11 +56,12 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init__(self, hidden_size, num_inputs, action_space):
+    def __init__(self, num_inputs, action_space):
         super(Critic, self).__init__()
         self.action_space = action_space
         num_outputs = action_space.shape[0]
 
+        hidden_size = 128
         self.linear1 = nn.Linear(num_inputs, hidden_size)
         self.ln1 = nn.LayerNorm(hidden_size)
 
@@ -76,19 +87,19 @@ class Critic(nn.Module):
 
 
 class DDPG(nn.Module):
-    def __init__(self, gamma, tau, hidden_size, num_inputs, action_space):
+    def __init__(self, gamma, tau, num_inputs, action_space):
         super(DDPG, self).__init__()
 
         self.num_inputs = num_inputs
         self.action_space = action_space
 
-        self.actor = Actor(hidden_size, self.num_inputs, self.action_space)
-        self.actor_target = Actor(hidden_size, self.num_inputs, self.action_space)
-        self.actor_perturbed = Actor(hidden_size, self.num_inputs, self.action_space)
+        self.actor = Actor(self.num_inputs, self.action_space)
+        self.actor_target = Actor(self.num_inputs, self.action_space)
+        self.actor_perturbed = Actor(self.num_inputs, self.action_space)
         self.actor_optim = Adam(self.actor.parameters(), lr=1e-4)
 
-        self.critic = Critic(hidden_size, self.num_inputs, self.action_space)
-        self.critic_target = Critic(hidden_size, self.num_inputs, self.action_space)
+        self.critic = Critic(self.num_inputs, self.action_space)
+        self.critic_target = Critic(self.num_inputs, self.action_space)
         self.critic_optim = Adam(self.critic.parameters(), lr=1e-3)
 
         self.gamma = gamma
@@ -152,9 +163,9 @@ class DDPG(nn.Module):
 
         policy_loss = policy_loss.mean()
         policy_loss.backward()
-        self.actor_optim.step()
+        # self.actor_optim.step()
 
-        soft_update(self.actor_target, self.actor, self.tau)
+        # soft_update(self.actor_target, self.actor, self.tau)
         soft_update(self.critic_target, self.critic, self.tau)
 
         return value_loss.item(), policy_loss.item()

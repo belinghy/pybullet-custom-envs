@@ -23,7 +23,7 @@ def parse_args():
                         help='name of the environment to run')
     parser.add_argument('--gui', action='store_true')
     parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                        help='discount factor for reward (default: 0.99)')
+                        help='discount factor for reward (default: 0.999)')
     parser.add_argument('--tau', type=float, default=0.001, metavar='G',
                         help='discount factor for model (default: 0.001)')
     parser.add_argument('--ou_noise', type=bool, default=True)
@@ -42,8 +42,6 @@ def parse_args():
                         help='max episode length (default: 1000)')
     parser.add_argument('--num_episodes', type=int, default=1000, metavar='N',
                         help='number of episodes (default: 1000)')
-    parser.add_argument('--hidden_size', type=int, default=128, metavar='N',
-                        help='number of episodes (default: 128)')
     parser.add_argument('--updates_per_step', type=int, default=5, metavar='N',
                         help='model updates per simulator step (default: 5)')
     parser.add_argument('--replay_size', type=int, default=1000000, metavar='N',
@@ -60,7 +58,7 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
-    agent = DDPG(args.gamma, args.tau, args.hidden_size,
+    agent = DDPG(args.gamma, args.tau,
                      env.observation_space.shape[0], env.action_space)
     agent = agent.cuda() if use_cuda else agent
 
@@ -75,6 +73,7 @@ def main():
     total_numsteps = 0
     updates = 0
 
+    # Need this to render
     if args.gui:
         env.render("human")
         env.reset()
@@ -175,6 +174,8 @@ def main():
             rewards.append(episode_reward)
             print("Episode: {}, total numsteps: {}, reward: {}, average reward: {}".format(
                 i_episode, total_numsteps, rewards[-1], np.mean(rewards[-10:])))
+
+            agent.save_model(args.env_name)
 
     env.close()
     return
