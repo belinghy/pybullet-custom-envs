@@ -32,12 +32,12 @@ class BlendingModule(nn.Module):
     def forward(self, x):
         x = F.relu(self.linear1(x))
         x = F.relu(self.linear2(x))
-        return F.softmax(self.omega(x))
+        return F.softmax(self.omega(x), dim=1)
 
 
 class PolicyModule(nn.Module):
     def __init__(self, num_inputs, action_space, pretrained=False):
-        super(Actor, self).__init__()
+        super(PolicyModule, self).__init__()
         self.action_space = action_space
         num_outputs = action_space.shape[0]
 
@@ -73,38 +73,41 @@ class PolicyModule(nn.Module):
 
 
 class Actor(nn.Module):
-    def __init__(self, num_inputs, action_space, num_experts):
+    def __init__(self, num_inputs, action_space):
         super(Actor, self).__init__()
         self.action_space = action_space
         num_actions = action_space.shape[0]
 
-        # Policy 1 is pre-trained, set to eval
-        self.p1 = PolicyModule(num_inputs, num_actions, pretrained=True)
+        # Policy 1 is pre-trained, set to eval to disable backprop through it
+        self.p1 = PolicyModule(num_inputs, action_space, pretrained=True)
         self.p1.eval()
 
         # Training Policy 2 as additional expert
-        self.p2 = PolicyModule(num_inputs, num_actions)
+        self.p2 = PolicyModule(num_inputs, action_space, pretrained=True)
 
         # Combined policy
-        self.cp = PolicyModule(num_inputs, num_actions)
+        self.cp = PolicyModule(num_inputs, action_space)
 
         # Hardcode num_experts for now
         num_experts = 2
-        self.blending_module = BlendingModule(num_inputs+num_actions, num_experts)
+        self.blending_module = BlendingModule(num_inputs, num_experts)
 
-    def forward(self, state, prev_action):
-        x = torch.cat((state, prev_action), dim=1)
+    def forward(self, states):
+        # x = torch.cat((states, prev_action), dim=1)
+        x = states
         coeffs = self.blending_module(x)
 
         p1_states = self.p1.state_dict()
         p2_states = self.p2.state_dict()
-        for name, _ in self.cp.named_parameters():
-            print(p1_states[name])
-            print(p2_states[name])
+        # coeffs are in batches
+        mu_list = []
+        for state, coeff in zip(states, coeffs):
+            for name, param in self.cp.named_parameters():
+                param.data = coeff[0] * p1_states[name].data.clone() + \
+                             coeff[1] * p2_states[name].data.clone()
+            mu_list.append(self.cp(state).squeeze())
 
-        #self.cp.load_state_dict()
-
-        mu = self.cp(state)
+        mu = torch.stack(mu_list, dim=0)
         return mu
 
 
@@ -159,7 +162,6 @@ class DDPG(nn.Module):
         hard_update(self.actor_target, self.actor)  # Make sure target is with the same weight
         hard_update(self.critic_target, self.critic)
 
-
     def select_action(self, state, action_noise=None, param_noise=None):
         self.actor.eval()
         t_state = Variable(state).cuda() if use_cuda else Variable(state)
@@ -177,7 +179,6 @@ class DDPG(nn.Module):
             mu += t_noise
 
         return mu.clamp(-1, 1)
-
 
     def update_parameters(self, batch):
         state_batch = Variable(torch.cat(batch.state))
