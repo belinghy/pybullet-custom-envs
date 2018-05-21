@@ -18,8 +18,25 @@ def hard_update(target, source):
         target_param.data.copy_(param.data)
 
 
-class Actor(nn.Module):
-    def __init__(self, num_inputs, action_space):
+class BlendingModule(nn.Module):
+    def __init__(self, num_inputs, num_experts):
+        """ Input should have some kind of history, maybe state + prev_action"""
+        super(BlendingModule, self).__init__()
+        hidden_size = 128
+        self.linear1 = nn.Linear(num_inputs, hidden_size)
+        # self.ln1 = nn.LayerNorm(hidden_size)
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+        # self.ln2 == nn.Linear(hidden_size)
+        self.omega = nn.Linear(hidden_size, num_experts)
+
+    def forward(self, x):
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
+        return F.softmax(self.omega(x))
+
+
+class PolicyModule(nn.Module):
+    def __init__(self, num_inputs, action_space, pretrained=False):
         super(Actor, self).__init__()
         self.action_space = action_space
         num_outputs = action_space.shape[0]
@@ -28,30 +45,66 @@ class Actor(nn.Module):
         l2_size = 128
 
         self.linear1 = nn.Linear(num_inputs, l1_size)
-        self.ln1 = nn.LayerNorm(l1_size)
-
+        # self.ln1 = nn.LayerNorm(l1_size)
         self.linear2 = nn.Linear(l1_size, l2_size)
-        self.ln2 = nn.LayerNorm(l2_size)
-
+        # self.ln2 = nn.LayerNorm(l2_size)
         self.mu = nn.Linear(l2_size, num_outputs)
 
         # Init
-        self.linear1.weight.data = torch.from_numpy(weights_dense1_w.T)
-        self.linear1.bias.data = torch.from_numpy(weights_dense1_b.T)
-        self.linear2.weight.data = torch.from_numpy(weights_dense2_w.T)
-        self.linear2.bias.data = torch.from_numpy(weights_dense2_b.T)
-        self.mu.weight.data = torch.from_numpy(weights_final_w.T)
-        self.mu.bias.data = torch.from_numpy(weights_final_b.T)
+        if pretrained:
+            self.linear1.weight.data = torch.from_numpy(weights_dense1_w.T)
+            self.linear1.bias.data = torch.from_numpy(weights_dense1_b.T)
+            self.linear2.weight.data = torch.from_numpy(weights_dense2_w.T)
+            self.linear2.bias.data = torch.from_numpy(weights_dense2_b.T)
+            self.mu.weight.data = torch.from_numpy(weights_final_w.T)
+            self.mu.bias.data = torch.from_numpy(weights_final_b.T)
+
 
     def forward(self, inputs):
         x = inputs
         x = self.linear1(x)
-        x = self.ln1(x)
+        # x = self.ln1(x)
         x = F.relu(x)
         x = self.linear2(x)
-        x = self.ln2(x)
+        # x = self.ln2(x)
         x = F.relu(x)
         mu = F.tanh(self.mu(x))
+        return mu
+
+
+class Actor(nn.Module):
+    def __init__(self, num_inputs, action_space, num_experts):
+        super(Actor, self).__init__()
+        self.action_space = action_space
+        num_actions = action_space.shape[0]
+
+        # Policy 1 is pre-trained, set to eval
+        self.p1 = PolicyModule(num_inputs, num_actions, pretrained=True)
+        self.p1.eval()
+
+        # Training Policy 2 as additional expert
+        self.p2 = PolicyModule(num_inputs, num_actions)
+
+        # Combined policy
+        self.cp = PolicyModule(num_inputs, num_actions)
+
+        # Hardcode num_experts for now
+        num_experts = 2
+        self.blending_module = BlendingModule(num_inputs+num_actions, num_experts)
+
+    def forward(self, state, prev_action):
+        x = torch.cat((state, prev_action), dim=1)
+        coeffs = self.blending_module(x)
+
+        p1_states = self.p1.state_dict()
+        p2_states = self.p2.state_dict()
+        for name, _ in self.cp.named_parameters():
+            print(p1_states[name])
+            print(p2_states[name])
+
+        #self.cp.load_state_dict()
+
+        mu = self.cp(state)
         return mu
 
 
@@ -63,11 +116,9 @@ class Critic(nn.Module):
 
         hidden_size = 128
         self.linear1 = nn.Linear(num_inputs, hidden_size)
-        self.ln1 = nn.LayerNorm(hidden_size)
-
+        # self.ln1 = nn.LayerNorm(hidden_size)
         self.linear2 = nn.Linear(hidden_size+num_outputs, hidden_size)
-        self.ln2 = nn.LayerNorm(hidden_size)
-
+        # self.ln2 = nn.LayerNorm(hidden_size)
         self.V = nn.Linear(hidden_size, 1)
         self.V.weight.data.mul_(0.1)
         self.V.bias.data.mul_(0.1)
@@ -75,12 +126,12 @@ class Critic(nn.Module):
     def forward(self, inputs, actions):
         x = inputs
         x = self.linear1(x)
-        x = self.ln1(x)
+        # x = self.ln1(x)
         x = F.relu(x)
 
         x = torch.cat((x, actions), 1)
         x = self.linear2(x)
-        x = self.ln2(x)
+        # x = self.ln2(x)
         x = F.relu(x)
         V = self.V(x)
         return V
