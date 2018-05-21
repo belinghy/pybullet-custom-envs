@@ -62,6 +62,9 @@ def main():
                      env.observation_space.shape[0], env.action_space)
     agent = agent.cuda() if use_cuda else agent
 
+    # Hardcode model path, only load critic for now
+    agent.load_model(None, './models/ddpg_critic_HumanoidFlagrunBulletEnv-v0_')
+
     memory = ReplayMemory(args.replay_size)
 
     ounoise = OUNoise(env.action_space.shape[0]) if args.ou_noise else None
@@ -156,6 +159,9 @@ def main():
         rewards.append(episode_reward)
         if i_episode % 10 == 0:
             state = torch.Tensor([env.reset()])
+            f1, f2 = agent.return_coefficients(state)
+            writer.add_scalar('coeffs/1', f1, i_episode)
+            writer.add_scalar('coeffs/2', f2, i_episode)
             episode_reward = 0
             while True:
                 action = agent.select_action(state)

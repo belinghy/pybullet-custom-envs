@@ -110,6 +110,12 @@ class Actor(nn.Module):
         mu = torch.stack(mu_list, dim=0)
         return mu
 
+    def get_coefficients(self, states):
+        self.blending_module.eval()
+        coeffs = self.blending_module(states)
+        self.blending_module.train()
+        return coeffs
+
 
 class Critic(nn.Module):
     def __init__(self, num_inputs, action_space):
@@ -119,9 +125,9 @@ class Critic(nn.Module):
 
         hidden_size = 128
         self.linear1 = nn.Linear(num_inputs, hidden_size)
-        # self.ln1 = nn.LayerNorm(hidden_size)
+        self.ln1 = nn.LayerNorm(hidden_size)
         self.linear2 = nn.Linear(hidden_size+num_outputs, hidden_size)
-        # self.ln2 = nn.LayerNorm(hidden_size)
+        self.ln2 = nn.LayerNorm(hidden_size)
         self.V = nn.Linear(hidden_size, 1)
         self.V.weight.data.mul_(0.1)
         self.V.bias.data.mul_(0.1)
@@ -129,12 +135,12 @@ class Critic(nn.Module):
     def forward(self, inputs, actions):
         x = inputs
         x = self.linear1(x)
-        # x = self.ln1(x)
+        x = self.ln1(x)
         x = F.relu(x)
 
         x = torch.cat((x, actions), 1)
         x = self.linear2(x)
-        # x = self.ln2(x)
+        x = self.ln2(x)
         x = F.relu(x)
         V = self.V(x)
         return V
@@ -231,6 +237,12 @@ class DDPG(nn.Module):
                 pass 
             param = params[name]
             param += torch.randn(param.shape) * param_noise.current_stddev
+
+    def return_coefficients(self, state):
+        # state should not be batched
+        state = state.cuda() if use_cuda else state
+        coeffs = self.actor.get_coefficients(state).squeeze()
+        return coeffs.cpu()[0].item(), coeffs.cpu()[1].item()
 
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):
         if not os.path.exists('models/'):
