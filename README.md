@@ -21,3 +21,6 @@ Commit: `b8e649d636ea01277bd74c1ab90a89a20d64a36c`
 * Blending of expert module can be done be scaling the input to non-linear layers, since non-linear layers don't have weights and scaling weights of linear layers is the same as scaling their outputs?
 * Testing with `4` experts; blending module seems to always converge to favour one and not stay in between. No sinusoidal behaviour as observed in the mode-adaptive neural network paper; perhaps needing some kind of *history* in the input. 
 
+Commit: `0cff1cc0ba8819be9d0140b9ad197c57728d6e75`
+* Changing activation to `tanh` since the action space `limit` is `1` and `-1`. However, this does not seem to make a difference.
+* Perhaps need to train longer.  The network is also relatively large at 256, 128 in hidden layers; where 64 is common.
