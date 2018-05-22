@@ -19,5 +19,7 @@ no quick way to do this without using a loop for a mini-batch?  Changed batch si
 * Starting with two experts both with pre-trained weights.  One is fixed in evaluation mode, 
 the other is set fro training.  Initially blending module is unbiased, 
 but slowly we should see blending module to converge to favour first expert.
-* Model trained for `160` episodes. Blending coefficients follow expectation, 
-but not as much as I thought it would.  
+* Model trained for `160` episodes. Blending coefficients follow expected trend, 
+but the bias is still balanced `.48` to `.52`.
+* For deeper nets, there are more parameters to copy, which is time consuming. For smaller nets,
+most of the work is being done on the CPU, which is slow. How to make this architecture run fast?
