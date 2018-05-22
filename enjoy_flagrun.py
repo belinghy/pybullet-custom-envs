@@ -53,6 +53,7 @@ def main():
     np.random.seed(args.seed)
 
     agent = Actor(env.observation_space.shape[0], env.action_space)
+    agent = agent.cuda() if use_cuda else agent
 
     # Load saved model
     agent.load_state_dict(torch.load('./models/ddpg_actor_HumanoidFlagrunBulletEnv-v0_'))
@@ -69,6 +70,7 @@ def main():
 
     while True:
         state = torch.Tensor([env.reset()])
+        state = state.cuda() if use_cuda else state
 
         score = 0
         frame = 0
@@ -98,6 +100,7 @@ def main():
             frame += 1
 
             state = torch.Tensor([next_state])
+            state = state.cuda() if use_cuda else state
 
             if not done:
                 continue
