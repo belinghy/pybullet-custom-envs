@@ -59,11 +59,10 @@ def main():
     np.random.seed(args.seed)
 
     agent = DDPG(args.gamma, args.tau,
-                     env.observation_space.shape[0], env.action_space)
+                 env.observation_space.shape[0], env.action_space,
+                 './models/ddpg_actor_HumanoidFlagrunBulletEnv-v0_',
+                 './models/ddpg_critic_HumanoidFlagrunBulletEnv-v0_')
     agent = agent.cuda() if use_cuda else agent
-
-    # Hardcode model path, only load critic for now
-    agent.load_model(None, './models/ddpg_critic_HumanoidFlagrunBulletEnv-v0_')
 
     memory = ReplayMemory(args.replay_size)
 

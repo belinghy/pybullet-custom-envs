@@ -80,7 +80,6 @@ class Actor(nn.Module):
 
         # Policy 1 is pre-trained, set to eval to disable backprop through it
         self.p1 = PolicyModule(num_inputs, action_space, pretrained=True)
-        self.p1.eval()
 
         # Training Policy 2 as additional expert
         self.p2 = PolicyModule(num_inputs, action_space, pretrained=True)
@@ -147,7 +146,7 @@ class Critic(nn.Module):
 
 
 class DDPG(nn.Module):
-    def __init__(self, gamma, tau, num_inputs, action_space):
+    def __init__(self, gamma, tau, num_inputs, action_space, actor_path=None, critic_path=None):
         super(DDPG, self).__init__()
 
         self.num_inputs = num_inputs
@@ -165,6 +164,7 @@ class DDPG(nn.Module):
         self.gamma = gamma
         self.tau = tau
 
+        self.load_model(actor_path, critic_path)
         hard_update(self.actor_target, self.actor)  # Make sure target is with the same weight
         hard_update(self.critic_target, self.critic)
 
@@ -221,9 +221,9 @@ class DDPG(nn.Module):
 
         policy_loss = policy_loss.mean()
         policy_loss.backward()
-        # self.actor_optim.step()
+        self.actor_optim.step()
 
-        # soft_update(self.actor_target, self.actor, self.tau)
+        soft_update(self.actor_target, self.actor, self.tau)
         soft_update(self.critic_target, self.critic, self.tau)
 
         return value_loss.item(), policy_loss.item()
