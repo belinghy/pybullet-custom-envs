@@ -121,8 +121,8 @@ class Actor(nn.Module):
         x  = F.relu(col1*self.p1_l1(x) + col2*self.p2_l1(x) + col3*self.p3_l1(x) + col4*self.p4_l1(x))
         x  = F.relu(col1*self.p1_l2(x) + col2*self.p2_l2(x) + col3*self.p3_l2(x) + col4*self.p4_l2(x))
         # In PyBullet examples, they just had a linear layer output
-        mu = col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x)
-        # mu = F.tanh(col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x))
+        # mu = col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x)
+        mu = F.tanh(col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x))
 
         return mu
 
