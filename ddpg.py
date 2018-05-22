@@ -22,7 +22,7 @@ class BlendingModule(nn.Module):
     def __init__(self, num_inputs, num_experts):
         """ Input should have some kind of history, maybe state + prev_action"""
         super(BlendingModule, self).__init__()
-        hidden_size = 128
+        hidden_size = 32
         self.linear1 = nn.Linear(num_inputs, hidden_size)
         # self.ln1 = nn.LayerNorm(hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
@@ -30,8 +30,8 @@ class BlendingModule(nn.Module):
         self.omega = nn.Linear(hidden_size, num_experts)
 
     def forward(self, x):
-        x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
+        x = F.elu(self.linear1(x))
+        x = F.elu(self.linear2(x))
         return F.softmax(self.omega(x), dim=1)
 
 
@@ -48,31 +48,60 @@ class Actor(nn.Module):
         self.p1_l1 = nn.Linear(num_inputs, l1_size)
         self.p1_l2 = nn.Linear(l1_size, l2_size)
         self.p1_mu = nn.Linear(l2_size, num_actions)
+        # self.p1_l1.weight.requires_grad = False
+        # self.p1_l1.bias.requires_grad = False
+        # self.p1_l2.weight.requires_grad = False
+        # self.p1_l2.bias.requires_grad = False
+        # self.p1_mu.weight.requires_grad = False
+        # self.p1_mu.bias.requires_grad = False
 
         # Policy 2
         self.p2_l1 = nn.Linear(num_inputs, l1_size)
         self.p2_l2 = nn.Linear(l1_size, l2_size)
         self.p2_mu = nn.Linear(l2_size, num_actions)
 
+        # Policy 3
+        self.p3_l1 = nn.Linear(num_inputs, l1_size)
+        self.p3_l2 = nn.Linear(l1_size, l2_size)
+        self.p3_mu = nn.Linear(l2_size, num_actions)
+
+        # Policy 4
+        self.p4_l1 = nn.Linear(num_inputs, l1_size)
+        self.p4_l2 = nn.Linear(l1_size, l2_size)
+        self.p4_mu = nn.Linear(l2_size, num_actions)
+
+
         # Hardcode num_experts for now
-        num_experts = 2
+        num_experts = 4
         self.blending_module = BlendingModule(num_inputs, num_experts)
 
         if pretrained:
             self.p1_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
-            self.p2_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
             self.p1_l1.bias.data = torch.from_numpy(weights_dense1_b.T)
+            self.p2_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
             self.p2_l1.bias.data = torch.from_numpy(weights_dense1_b.T)
+            self.p3_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
+            self.p3_l1.bias.data = torch.from_numpy(weights_dense1_b.T)
+            self.p4_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
+            self.p4_l1.bias.data = torch.from_numpy(weights_dense1_b.T)
 
             self.p1_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
-            self.p2_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
             self.p1_l2.bias.data = torch.from_numpy(weights_dense2_b.T)
+            self.p2_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
             self.p2_l2.bias.data = torch.from_numpy(weights_dense2_b.T)
+            self.p3_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
+            self.p3_l2.bias.data = torch.from_numpy(weights_dense2_b.T)
+            self.p4_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
+            self.p4_l2.bias.data = torch.from_numpy(weights_dense2_b.T)
 
             self.p1_mu.weight.data = torch.from_numpy(weights_final_w.T)
-            self.p2_mu.weight.data = torch.from_numpy(weights_final_w.T)
             self.p1_mu.bias.data = torch.from_numpy(weights_final_b.T)
+            self.p2_mu.weight.data = torch.from_numpy(weights_final_w.T)
             self.p2_mu.bias.data = torch.from_numpy(weights_final_b.T)
+            self.p3_mu.weight.data = torch.from_numpy(weights_final_w.T)
+            self.p3_mu.bias.data = torch.from_numpy(weights_final_b.T)
+            self.p4_mu.weight.data = torch.from_numpy(weights_final_w.T)
+            self.p4_mu.bias.data = torch.from_numpy(weights_final_b.T)
 
     def forward(self, states):
         # x = torch.cat((states, prev_action), dim=1)
@@ -81,12 +110,19 @@ class Actor(nn.Module):
 
         # Hardcode selecting of columns in coeffs
         # Needs to be changed for more experts
-        first = torch.index_select(coeffs, 1, torch.tensor([0]))
-        second = torch.index_select(coeffs, 1, torch.tensor([1]))
+        zero, one, two, three = torch.tensor([0]), torch.tensor([1]), torch.tensor([2]), torch.tensor([3])
+        if use_cuda:
+            zero, one, two, three = zero.cuda(), one.cuda(), two.cuda(), three.cuda()
+        col1 = torch.index_select(coeffs, 1, zero)
+        col2 = torch.index_select(coeffs, 1, one)
+        col3 = torch.index_select(coeffs, 1, two)
+        col4 = torch.index_select(coeffs, 1, three)
 
-        x = F.relu(first*self.p1_l1(x) + second*self.p2_l1(x))
-        x = F.relu(first*self.p1_l2(x) + second*self.p2_l2(x))
-        mu = F.tanh(first*self.p1_mu(x) + second*self.p2_mu(x))
+        x  = F.relu(col1*self.p1_l1(x) + col2*self.p2_l1(x) + col3*self.p3_l1(x) + col4*self.p4_l1(x))
+        x  = F.relu(col1*self.p1_l2(x) + col2*self.p2_l2(x) + col3*self.p3_l2(x) + col4*self.p4_l2(x))
+        # In PyBullet examples, they just had a linear layer output
+        mu = col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x)
+        # mu = F.tanh(col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x))
 
         return mu
 
@@ -136,7 +172,7 @@ class DDPG(nn.Module):
         self.actor = Actor(self.num_inputs, self.action_space)
         self.actor_target = Actor(self.num_inputs, self.action_space)
         self.actor_perturbed = Actor(self.num_inputs, self.action_space)
-        self.actor_optim = Adam(self.actor.parameters(), lr=1e-4)
+        self.actor_optim = Adam(filter(lambda p: p.requires_grad, self.actor.parameters()), lr=1e-4)
 
         self.critic = Critic(self.num_inputs, self.action_space)
         self.critic_target = Critic(self.num_inputs, self.action_space)
@@ -223,7 +259,7 @@ class DDPG(nn.Module):
         # state should not be batched
         state = state.cuda() if use_cuda else state
         coeffs = self.actor.get_coefficients(state).squeeze()
-        return coeffs.cpu()[0].item(), coeffs.cpu()[1].item()
+        return coeffs.cpu()[0].item(), coeffs.cpu()[1].item(), coeffs.cpu()[2].item(), coeffs.cpu()[3].item()
 
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):
         if not os.path.exists('models/'):

@@ -32,7 +32,7 @@ def parse_args():
                         help='number of episodes with noise (default: 100)')
     parser.add_argument('--seed', type=int, default=4, metavar='N',
                         help='random seed (default: 4)')
-    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='batch size (default: 128)')
     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
                         help='max episode length (default: 1000)')

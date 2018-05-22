@@ -36,7 +36,7 @@ def parse_args():
                         help='number of episodes with noise (default: 100)')
     parser.add_argument('--seed', type=int, default=4, metavar='N',
                         help='random seed (default: 4)')
-    parser.add_argument('--batch_size', type=int, default=32, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=128, metavar='N',
                         help='batch size (default: 128)')
     parser.add_argument('--num_steps', type=int, default=1000, metavar='N',
                         help='max episode length (default: 1000)')
@@ -158,9 +158,11 @@ def main():
         rewards.append(episode_reward)
         if i_episode % 10 == 0:
             state = torch.Tensor([env.reset()])
-            f1, f2 = agent.return_coefficients(state)
+            f1, f2, f3, f4 = agent.return_coefficients(state)
             writer.add_scalar('coeffs/1', f1, i_episode)
             writer.add_scalar('coeffs/2', f2, i_episode)
+            writer.add_scalar('coeffs/3', f3, i_episode)
+            writer.add_scalar('coeffs/4', f4, i_episode)
             episode_reward = 0
             while True:
                 action = agent.select_action(state)
