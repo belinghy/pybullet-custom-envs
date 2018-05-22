@@ -60,8 +60,8 @@ def main():
 
     agent = DDPG(args.gamma, args.tau,
                  env.observation_space.shape[0], env.action_space,
-                 './models/ddpg_actor_HumanoidFlagrunBulletEnv-v0_',
-                 './models/ddpg_critic_HumanoidFlagrunBulletEnv-v0_')
+                 None,
+                 None)
     agent = agent.cuda() if use_cuda else agent
 
     memory = ReplayMemory(args.replay_size)

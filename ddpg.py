@@ -35,78 +35,59 @@ class BlendingModule(nn.Module):
         return F.softmax(self.omega(x), dim=1)
 
 
-class PolicyModule(nn.Module):
-    def __init__(self, num_inputs, action_space, pretrained=False):
-        super(PolicyModule, self).__init__()
-        self.action_space = action_space
-        num_outputs = action_space.shape[0]
-
-        l1_size = 256
-        l2_size = 128
-
-        self.linear1 = nn.Linear(num_inputs, l1_size)
-        # self.ln1 = nn.LayerNorm(l1_size)
-        self.linear2 = nn.Linear(l1_size, l2_size)
-        # self.ln2 = nn.LayerNorm(l2_size)
-        self.mu = nn.Linear(l2_size, num_outputs)
-
-        # Init
-        if pretrained:
-            self.linear1.weight.data = torch.from_numpy(weights_dense1_w.T)
-            self.linear1.bias.data = torch.from_numpy(weights_dense1_b.T)
-            self.linear2.weight.data = torch.from_numpy(weights_dense2_w.T)
-            self.linear2.bias.data = torch.from_numpy(weights_dense2_b.T)
-            self.mu.weight.data = torch.from_numpy(weights_final_w.T)
-            self.mu.bias.data = torch.from_numpy(weights_final_b.T)
-
-
-    def forward(self, inputs):
-        x = inputs
-        x = self.linear1(x)
-        # x = self.ln1(x)
-        x = F.relu(x)
-        x = self.linear2(x)
-        # x = self.ln2(x)
-        x = F.relu(x)
-        mu = F.tanh(self.mu(x))
-        return mu
-
-
 class Actor(nn.Module):
-    def __init__(self, num_inputs, action_space):
+    def __init__(self, num_inputs, action_space, pretrained=True):
         super(Actor, self).__init__()
         self.action_space = action_space
         num_actions = action_space.shape[0]
 
-        # Policy 1 is pre-trained, set to eval to disable backprop through it
-        self.p1 = PolicyModule(num_inputs, action_space, pretrained=True)
+        l1_size = 256
+        l2_size = 128
 
-        # Training Policy 2 as additional expert
-        self.p2 = PolicyModule(num_inputs, action_space, pretrained=True)
+        # Policy 1
+        self.p1_l1 = nn.Linear(num_inputs, l1_size)
+        self.p1_l2 = nn.Linear(l1_size, l2_size)
+        self.p1_mu = nn.Linear(l2_size, num_actions)
 
-        # Combined policy
-        self.cp = PolicyModule(num_inputs, action_space)
+        # Policy 2
+        self.p2_l1 = nn.Linear(num_inputs, l1_size)
+        self.p2_l2 = nn.Linear(l1_size, l2_size)
+        self.p2_mu = nn.Linear(l2_size, num_actions)
 
         # Hardcode num_experts for now
         num_experts = 2
         self.blending_module = BlendingModule(num_inputs, num_experts)
+
+        if pretrained:
+            self.p1_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
+            self.p2_l1.weight.data = torch.from_numpy(weights_dense1_w.T)
+            self.p1_l1.bias.data = torch.from_numpy(weights_dense1_b.T)
+            self.p2_l1.bias.data = torch.from_numpy(weights_dense1_b.T)
+
+            self.p1_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
+            self.p2_l2.weight.data = torch.from_numpy(weights_dense2_w.T)
+            self.p1_l2.bias.data = torch.from_numpy(weights_dense2_b.T)
+            self.p2_l2.bias.data = torch.from_numpy(weights_dense2_b.T)
+
+            self.p1_mu.weight.data = torch.from_numpy(weights_final_w.T)
+            self.p2_mu.weight.data = torch.from_numpy(weights_final_w.T)
+            self.p1_mu.bias.data = torch.from_numpy(weights_final_b.T)
+            self.p2_mu.bias.data = torch.from_numpy(weights_final_b.T)
 
     def forward(self, states):
         # x = torch.cat((states, prev_action), dim=1)
         x = states
         coeffs = self.blending_module(x)
 
-        p1_states = self.p1.state_dict()
-        p2_states = self.p2.state_dict()
-        # coeffs are in batches
-        mu_list = []
-        for state, coeff in zip(states, coeffs):
-            for name, param in self.cp.named_parameters():
-                param.data = coeff[0] * p1_states[name].data.clone() + \
-                             coeff[1] * p2_states[name].data.clone()
-            mu_list.append(self.cp(state).squeeze())
+        # Hardcode selecting of columns in coeffs
+        # Needs to be changed for more experts
+        first = torch.index_select(coeffs, 1, torch.tensor([0]))
+        second = torch.index_select(coeffs, 1, torch.tensor([1]))
 
-        mu = torch.stack(mu_list, dim=0)
+        x = F.relu(first*self.p1_l1(x) + second*self.p2_l1(x))
+        x = F.relu(first*self.p1_l2(x) + second*self.p2_l2(x))
+        mu = F.tanh(first*self.p1_mu(x) + second*self.p2_mu(x))
+
         return mu
 
     def get_coefficients(self, states):
