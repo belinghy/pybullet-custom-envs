@@ -102,7 +102,7 @@ class Crab2D(WalkerBase):
     foot_list = ["foot", "foot_left"]
 
     def __init__(self):
-        WalkerBase.__init__(self, "crab2d.xml", "torso", action_dim=6, obs_dim=22, power=0.40)
+        WalkerBase.__init__(self, "crab2d.xml", "pelvis", action_dim=6, obs_dim=22, power=0.40)
 
     def alive_bonus(self, z, pitch):
         return +1 if z > 0.8 and abs(pitch) < 1.0 else -1
