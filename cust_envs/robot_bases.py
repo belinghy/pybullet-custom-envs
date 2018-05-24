@@ -119,6 +119,8 @@ class MJCFBasedRobot(XmlBasedRobot):
             self.ordered_joints = []
             self.doneLoading = 1
             if self.self_collision:
+                print(pybullet.URDF_USE_SELF_COLLISION)
+                print(pybullet.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
                 self.objects = self._p.loadMJCF(os.path.join(currentdir, self.model_xml),
                                                 flags=pybullet.URDF_USE_SELF_COLLISION | pybullet.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS)
                 self.parts, self.jdict, self.ordered_joints, self.robot_body = self.addToScene(self._p, self.objects)
