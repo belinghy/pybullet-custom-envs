@@ -24,3 +24,8 @@ Commit: `b8e649d636ea01277bd74c1ab90a89a20d64a36c`
 Commit: `0cff1cc0ba8819be9d0140b9ad197c57728d6e75`
 * Changing activation to `tanh` since the action space `limit` is `1` and `-1`. However, this does not seem to make a difference.
 * Perhaps need to train longer.  The network is also relatively large at 256, 128 in hidden layers; where 64 is common.
+
+### 2018-05-23
+Commit: `b00aa9579e1c32083954e2690cba4d0e2d9c68b2`
+* Added `Crab2DCustomEnv-v0` which is just modified from Walker2D; still need `pybullet_envs`, but shouldn't need `pybullet_data`.
+* Still need to figure out how torque is scaled and what the observation space contains, especially if it contains foot contact by default.
