@@ -15,7 +15,9 @@ class Scene:
         self.cpp_world = World(self._p, gravity, timestep, frame_skip)
 
         self.test_window_still_open = True  # or never opened
-        self.human_render_detected = False  # if user wants render("human"), we open test window
+        self.human_render_detected = (
+            False
+        )  # if user wants render("human"), we open test window
 
         self.multiplayer_robots = {}
 
@@ -26,7 +28,8 @@ class Scene:
 
     def actor_introduce(self, robot):
         "Usually after scene reset"
-        if not self.multiplayer: return
+        if not self.multiplayer:
+            return
         self.multiplayer_robots[robot.player_n] = robot
 
     def actor_is_active(self, robot):
@@ -68,10 +71,11 @@ class World:
         self._p.setGravity(0, 0, -self.gravity)
         self._p.setDefaultContactERP(0.9)
         # print("self.numSolverIterations=",self.numSolverIterations)
-        self._p.setPhysicsEngineParameter(fixedTimeStep=self.timestep * self.frame_skip,
-                                          numSolverIterations=self.numSolverIterations, numSubSteps=self.frame_skip)
+        self._p.setPhysicsEngineParameter(
+            fixedTimeStep=self.timestep * self.frame_skip,
+            numSolverIterations=self.numSolverIterations,
+            numSubSteps=self.frame_skip,
+        )
 
     def step(self, frame_skip):
         self._p.stepSimulation()
-
-

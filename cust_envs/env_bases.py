@@ -13,10 +13,7 @@ class MJCFBaseBulletEnv(gym.Env):
     you don't use multiplayer.
     """
 
-    metadata = {
-        'render.modes': ['human', 'rgb_array'],
-        'video.frames_per_second': 60
-    }
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
 
     def __init__(self, robot, render=False):
         self.scene = None
@@ -40,11 +37,13 @@ class MJCFBaseBulletEnv(gym.Env):
 
     def _seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
-        self.robot.np_random = self.np_random  # use the same np_randomizer for robot as for env
+        self.robot.np_random = (
+            self.np_random
+        )  # use the same np_randomizer for robot as for env
         return [seed]
 
     def _reset(self):
-        if (self.physicsClientId < 0):
+        if self.physicsClientId < 0:
             self.ownsPhysicsClient = True
 
             if self.isRender:
@@ -71,14 +70,14 @@ class MJCFBaseBulletEnv(gym.Env):
         return s
 
     def _render(self, mode, close=False):
-        if (mode == "human"):
+        if mode == "human":
             self.isRender = True
         if mode != "rgb_array":
             return np.array([])
 
         base_pos = [0, 0, 0]
-        if (hasattr(self, 'robot')):
-            if (hasattr(self.robot, 'body_xyz')):
+        if hasattr(self, "robot"):
+            if hasattr(self.robot, "body_xyz"):
                 base_pos = self.robot.body_xyz
 
         view_matrix = self._p.computeViewMatrixFromYawPitchRoll(
@@ -87,22 +86,28 @@ class MJCFBaseBulletEnv(gym.Env):
             yaw=self._cam_yaw,
             pitch=self._cam_pitch,
             roll=0,
-            upAxisIndex=2)
+            upAxisIndex=2,
+        )
         proj_matrix = self._p.computeProjectionMatrixFOV(
-            fov=60, aspect=float(self._render_width) / self._render_height,
-            nearVal=0.1, farVal=100.0)
+            fov=60,
+            aspect=float(self._render_width) / self._render_height,
+            nearVal=0.1,
+            farVal=100.0,
+        )
         (_, _, px, _, _) = self._p.getCameraImage(
-            width=self._render_width, height=self._render_height, viewMatrix=view_matrix,
+            width=self._render_width,
+            height=self._render_height,
+            viewMatrix=view_matrix,
             projectionMatrix=proj_matrix,
-            renderer=pybullet.ER_BULLET_HARDWARE_OPENGL
+            renderer=pybullet.ER_BULLET_HARDWARE_OPENGL,
         )
         rgb_array = np.array(px)
         rgb_array = rgb_array[:, :, :3]
         return rgb_array
 
     def _close(self):
-        if (self.ownsPhysicsClient):
-            if (self.physicsClientId >= 0):
+        if self.ownsPhysicsClient:
+            if self.physicsClientId >= 0:
                 self._p.disconnect()
         self.physicsClientId = -1
 
@@ -114,7 +119,7 @@ class MJCFBaseBulletEnv(gym.Env):
     def step(self, *args, **kwargs):
         return self._step(*args, **kwargs)
 
-    if parse_version(gym.__version__) >= parse_version('0.9.6'):
+    if parse_version(gym.__version__) >= parse_version("0.9.6"):
         close = _close
         render = _render
         reset = _reset
@@ -122,6 +127,7 @@ class MJCFBaseBulletEnv(gym.Env):
 
 
 class Camera:
+
     def __init__(self):
         pass
 

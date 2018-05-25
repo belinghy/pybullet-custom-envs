@@ -19,6 +19,7 @@ def hard_update(target, source):
 
 
 class BlendingModule(nn.Module):
+
     def __init__(self, num_inputs, num_experts):
         """ Input should have some kind of history, maybe state + prev_action"""
         super(BlendingModule, self).__init__()
@@ -36,6 +37,7 @@ class BlendingModule(nn.Module):
 
 
 class Actor(nn.Module):
+
     def __init__(self, num_inputs, action_space, pretrained=True):
         super(Actor, self).__init__()
         self.action_space = action_space
@@ -69,7 +71,6 @@ class Actor(nn.Module):
         self.p4_l1 = nn.Linear(num_inputs, l1_size)
         self.p4_l2 = nn.Linear(l1_size, l2_size)
         self.p4_mu = nn.Linear(l2_size, num_actions)
-
 
         # Hardcode num_experts for now
         num_experts = 4
@@ -110,7 +111,12 @@ class Actor(nn.Module):
 
         # Hardcode selecting of columns in coeffs
         # Needs to be changed for more experts
-        zero, one, two, three = torch.tensor([0]), torch.tensor([1]), torch.tensor([2]), torch.tensor([3])
+        zero, one, two, three = (
+            torch.tensor([0]),
+            torch.tensor([1]),
+            torch.tensor([2]),
+            torch.tensor([3]),
+        )
         if use_cuda:
             zero, one, two, three = zero.cuda(), one.cuda(), two.cuda(), three.cuda()
         col1 = torch.index_select(coeffs, 1, zero)
@@ -118,11 +124,26 @@ class Actor(nn.Module):
         col3 = torch.index_select(coeffs, 1, two)
         col4 = torch.index_select(coeffs, 1, three)
 
-        x  = F.relu(col1*self.p1_l1(x) + col2*self.p2_l1(x) + col3*self.p3_l1(x) + col4*self.p4_l1(x))
-        x  = F.relu(col1*self.p1_l2(x) + col2*self.p2_l2(x) + col3*self.p3_l2(x) + col4*self.p4_l2(x))
+        x = F.relu(
+            col1 * self.p1_l1(x)
+            + col2 * self.p2_l1(x)
+            + col3 * self.p3_l1(x)
+            + col4 * self.p4_l1(x)
+        )
+        x = F.relu(
+            col1 * self.p1_l2(x)
+            + col2 * self.p2_l2(x)
+            + col3 * self.p3_l2(x)
+            + col4 * self.p4_l2(x)
+        )
         # In PyBullet examples, they just had a linear layer output
         # mu = col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x)
-        mu = F.tanh(col1*self.p1_mu(x) + col2*self.p2_mu(x) + col3*self.p3_mu(x) + col4*self.p4_mu(x))
+        mu = F.tanh(
+            col1 * self.p1_mu(x)
+            + col2 * self.p2_mu(x)
+            + col3 * self.p3_mu(x)
+            + col4 * self.p4_mu(x)
+        )
 
         return mu
 
@@ -134,6 +155,7 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
+
     def __init__(self, num_inputs, action_space):
         super(Critic, self).__init__()
         self.action_space = action_space
@@ -142,7 +164,7 @@ class Critic(nn.Module):
         hidden_size = 128
         self.linear1 = nn.Linear(num_inputs, hidden_size)
         self.ln1 = nn.LayerNorm(hidden_size)
-        self.linear2 = nn.Linear(hidden_size+num_outputs, hidden_size)
+        self.linear2 = nn.Linear(hidden_size + num_outputs, hidden_size)
         self.ln2 = nn.LayerNorm(hidden_size)
         self.V = nn.Linear(hidden_size, 1)
         self.V.weight.data.mul_(0.1)
@@ -163,7 +185,10 @@ class Critic(nn.Module):
 
 
 class DDPG(nn.Module):
-    def __init__(self, gamma, tau, num_inputs, action_space, actor_path=None, critic_path=None):
+
+    def __init__(
+        self, gamma, tau, num_inputs, action_space, actor_path=None, critic_path=None
+    ):
         super(DDPG, self).__init__()
 
         self.num_inputs = num_inputs
@@ -172,7 +197,9 @@ class DDPG(nn.Module):
         self.actor = Actor(self.num_inputs, self.action_space)
         self.actor_target = Actor(self.num_inputs, self.action_space)
         self.actor_perturbed = Actor(self.num_inputs, self.action_space)
-        self.actor_optim = Adam(filter(lambda p: p.requires_grad, self.actor.parameters()), lr=1e-4)
+        self.actor_optim = Adam(
+            filter(lambda p: p.requires_grad, self.actor.parameters()), lr=1e-4
+        )
 
         self.critic = Critic(self.num_inputs, self.action_space)
         self.critic_target = Critic(self.num_inputs, self.action_space)
@@ -182,13 +209,15 @@ class DDPG(nn.Module):
         self.tau = tau
 
         self.load_model(actor_path, critic_path)
-        hard_update(self.actor_target, self.actor)  # Make sure target is with the same weight
+        hard_update(
+            self.actor_target, self.actor
+        )  # Make sure target is with the same weight
         hard_update(self.critic_target, self.critic)
 
     def select_action(self, state, action_noise=None, param_noise=None):
         self.actor.eval()
         t_state = Variable(state).cuda() if use_cuda else Variable(state)
-        if param_noise is not None: 
+        if param_noise is not None:
             mu = self.actor_perturbed(t_state)
         else:
             mu = self.actor(t_state)
@@ -218,11 +247,15 @@ class DDPG(nn.Module):
             next_state_batch = next_state_batch.cuda()
 
         next_action_batch = self.actor_target(next_state_batch)
-        next_state_action_values = self.critic_target(next_state_batch, next_action_batch)
+        next_state_action_values = self.critic_target(
+            next_state_batch, next_action_batch
+        )
 
         reward_batch = reward_batch.unsqueeze(1)
         mask_batch = mask_batch.unsqueeze(1)
-        expected_state_action_batch = reward_batch + (self.gamma * mask_batch * next_state_action_values)
+        expected_state_action_batch = reward_batch + (
+            self.gamma * mask_batch * next_state_action_values
+        )
 
         self.critic_optim.zero_grad()
 
@@ -234,7 +267,7 @@ class DDPG(nn.Module):
 
         self.actor_optim.zero_grad()
 
-        policy_loss = -self.critic((state_batch),self.actor((state_batch)))
+        policy_loss = -self.critic((state_batch), self.actor((state_batch)))
 
         policy_loss = policy_loss.mean()
         policy_loss.backward()
@@ -250,8 +283,8 @@ class DDPG(nn.Module):
         hard_update(self.actor_perturbed, self.actor)
         params = self.actor_perturbed.state_dict()
         for name in params:
-            if 'ln' in name: 
-                pass 
+            if "ln" in name:
+                pass
             param = params[name]
             param += torch.randn(param.shape) * param_noise.current_stddev
 
@@ -259,23 +292,28 @@ class DDPG(nn.Module):
         # state should not be batched
         state = state.cuda() if use_cuda else state
         coeffs = self.actor.get_coefficients(state).squeeze()
-        return coeffs.cpu()[0].item(), coeffs.cpu()[1].item(), coeffs.cpu()[2].item(), coeffs.cpu()[3].item()
+        return (
+            coeffs.cpu()[0].item(),
+            coeffs.cpu()[1].item(),
+            coeffs.cpu()[2].item(),
+            coeffs.cpu()[3].item(),
+        )
 
     def save_model(self, env_name, suffix="", actor_path=None, critic_path=None):
-        if not os.path.exists('models/'):
-            os.makedirs('models/')
+        if not os.path.exists("models/"):
+            os.makedirs("models/")
 
         if actor_path is None:
-            actor_path = "models/ddpg_actor_{}_{}".format(env_name, suffix) 
+            actor_path = "models/ddpg_actor_{}_{}".format(env_name, suffix)
         if critic_path is None:
-            critic_path = "models/ddpg_critic_{}_{}".format(env_name, suffix) 
-        print('Saving models to {} and {}'.format(actor_path, critic_path))
+            critic_path = "models/ddpg_critic_{}_{}".format(env_name, suffix)
+        print("Saving models to {} and {}".format(actor_path, critic_path))
         torch.save(self.actor.state_dict(), actor_path)
         torch.save(self.critic.state_dict(), critic_path)
 
     def load_model(self, actor_path, critic_path):
-        print('Loading models from {} and {}'.format(actor_path, critic_path))
+        print("Loading models from {} and {}".format(actor_path, critic_path))
         if actor_path is not None:
             self.actor.load_state_dict(torch.load(actor_path))
-        if critic_path is not None: 
+        if critic_path is not None:
             self.critic.load_state_dict(torch.load(critic_path))

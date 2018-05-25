@@ -10,15 +10,15 @@ def register(id, *args, **kvargs):
 
 
 register(
-    id='Walker2DCustomEnv-v0',
-    entry_point='cust_envs.envs:Walker2DCustomEnv',
+    id="Walker2DCustomEnv-v0",
+    entry_point="cust_envs.envs:Walker2DCustomEnv",
     max_episode_steps=1000,
-    reward_threshold=2500.0
+    reward_threshold=2500.0,
 )
 
 register(
-    id='Crab2DCustomEnv-v0',
-    entry_point='cust_envs.envs:Crab2DCustomEnv',
+    id="Crab2DCustomEnv-v0",
+    entry_point="cust_envs.envs:Crab2DCustomEnv",
     max_episode_steps=1000,
-    reward_threshold=2500.0
+    reward_threshold=2500.0,
 )

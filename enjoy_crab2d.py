@@ -3,6 +3,7 @@ import numpy as np
 import cust_envs
 import time
 
+
 def main():
     env = gym.make("Crab2DCustomEnv-v0")
     env.render(mode="human")
@@ -16,13 +17,13 @@ def main():
         obs = env.reset()
 
         while 1:
-            time.sleep(1./60.)
+            time.sleep(1. / 60.)
             obs, r, done, _ = env.step(np.zeros(6))
             score += r
             frame += 1
 
             still_open = env.render("human")
-            if still_open==False:
+            if still_open == False:
                 return
             # if not done: continue
             # if restart_delay==0:
@@ -32,5 +33,6 @@ def main():
             #     restart_delay -= 1
             #     if restart_delay==0: break
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     main()
