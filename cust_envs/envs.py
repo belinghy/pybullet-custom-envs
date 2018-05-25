@@ -144,10 +144,12 @@ class WalkerBaseBulletEnv(MJCFBaseBulletEnv):
 
         return state, sum(self.rewards), bool(done), {}
 
-    def camera_adjust(self):
-        x, y, z = self.body_xyz
+    def camera_adjust(self, distance=10, yaw=10):
+        x, y, z = self.robot.body_xyz
         self.camera_x = 0.98 * self.camera_x + (1 - 0.98) * x
-        self.camera.move_and_look_at(self.camera_x, y - 2.0, 1.4, x, y, 1.0)
+        # self.camera.move_and_look_at(self.camera_x, y - 2.0, 1.4, x, y, 1.0)
+        lookat = [x, y, z]
+        self._p.resetDebugVisualizerCamera(distance, yaw, -20, lookat)
 
 
 class Walker2DCustomEnv(WalkerBaseBulletEnv):
