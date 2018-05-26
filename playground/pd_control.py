@@ -13,6 +13,7 @@ import time
 
 
 class PDController:
+
     def __init__(self, env):
         self.action_dim = env.action_space.shape[0]
         self.k_p = 0.25
@@ -20,25 +21,31 @@ class PDController:
 
     def drive_torques(self, targets, states):
         # States and targets should be [theta, omega] * action_dim
-        diff = targets-states
-        torques = self.k_p*diff[0::2] + self.k_d*diff[1::2]
+        diff = targets - states
+        torques = self.k_p * diff[0::2] + self.k_d * diff[1::2]
         return torques
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Simple PD control for driving characters in environments")
-    parser.add_argument("--env", default="Crab2DCustomEnv-v0", help="Name of Gym environment to run")
+    parser = argparse.ArgumentParser(
+        description="Simple PD control for driving characters in environments"
+    )
+    parser.add_argument(
+        "--env", default="Crab2DCustomEnv-v0", help="Name of Gym environment to run"
+    )
     return parser.parse_args()
 
 
 def compute_targets(action_dim):
     # Everything is normalized
 
-    targets = np.array([
-        -1 * np.ones(action_dim),       # split,
-        np.zeros(action_dim),           # frog
-        np.array([1, -1, 0, 1, -1, 0])  # tall stance
-    ])
+    targets = np.array(
+        [
+            np.array([-1, -1, -1, -1, -1, -1]),  # split,
+            np.array([0, 0, 0, 0, 0, 0]),  # frog
+            np.array([1, -1, 0, 1, -1, 0]),  # tall stance
+        ]
+    )
     random_choice = np.random.choice(targets.shape[0], 1)
 
     target_thetas = targets[random_choice]
@@ -48,6 +55,7 @@ def compute_targets(action_dim):
     targets[0::2] = target_thetas
     targets[1::2] = target_omegas
     return targets
+
 
 def main():
     args = parse_args()
@@ -69,7 +77,7 @@ def main():
     while True:
 
         # Extract angles and velocities
-        thetas_and_omegas = obs[8:8+2*action_dim]
+        thetas_and_omegas = obs[8 : 8 + 2 * action_dim]
         if np.linalg.norm(targets - thetas_and_omegas, 1) / np.size(targets) < 1e-2:
             # Converged to target pose
             targets = compute_targets(action_dim)
