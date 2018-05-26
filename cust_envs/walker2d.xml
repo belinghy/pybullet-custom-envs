@@ -11,29 +11,29 @@
       <joint armature="0" axis="1 0 0" damping="0" limited="false" name="ignorex" pos="0 0 0" stiffness="0" type="slide"/>
       <joint armature="0" axis="0 0 1" damping="0" limited="false" name="ignorez" pos="0 0 0" ref="1.25" stiffness="0" type="slide"/>
       <joint armature="0" axis="0 1 0" damping="0" limited="false" name="ignorey" pos="0 0 0" stiffness="0" type="hinge"/>
-      <geom conaffinity="0" fromto="0 0.10 1.05 0 -0.10 1.05" name="pelvis_geom" size="0.05" type="capsule"/>
+      <geom conaffinity="0" fromto="0 0.10 1.25 0 -0.10 1.25" name="pelvis_geom" size="0.05" type="capsule"/>
       <body name="thigh">
-        <joint axis="0 -1 0" name="thigh_joint" pos="0 -0.10 1.05" range="-150 0" type="hinge"/>
-        <geom fromto="0 -0.10 1.05 0 -0.10 0.6" name="thigh_geom" size="0.05" type="capsule"/>
+        <joint axis="0 -1 0" name="thigh_joint" pos="0 -0.10 1.25" range="-150 0" type="hinge"/>
+        <geom fromto="0 -0.10 1.25 0 -0.10 0.8" name="thigh_geom" size="0.05" type="capsule"/>
         <body name="leg">
-          <joint axis="0 -1 0" name="leg_joint" pos="0 -0.10 0.6" range="-150 0" type="hinge"/>
-          <geom fromto="0 -0.10 0.6 0 -0.10 0.1" name="leg_geom" size="0.04" type="capsule"/>
+          <joint axis="0 -1 0" name="leg_joint" pos="0 -0.10 0.8" range="-150 0" type="hinge"/>
+          <geom fromto="0 -0.10 0.8 0 -0.10 0.3" name="leg_geom" size="0.04" type="capsule"/>
           <body name="foot">
-            <joint axis="0 -1 0" name="foot_joint" pos="0 -0.10 0.1" range="-45 45" type="hinge"/>
-            <geom fromto="-0.0 -0.10 0.1 0.2 -0.10 0.1" name="foot_geom" size="0.06" type="capsule"/>
+            <joint axis="0 -1 0" name="foot_joint" pos="0 -0.10 0.3" range="-45 45" type="hinge"/>
+            <geom fromto="-0.0 -0.10 0.3 0.2 -0.10 0.3" name="foot_geom" size="0.06" type="capsule"/>
           </body>
         </body>
       </body>
       <!-- copied and then replace thigh->thigh_left, leg->leg_left, foot->foot_right -->
       <body name="thigh_left">
-        <joint axis="0 -1 0" name="thigh_left_joint" pos="0 0.10 1.05" range="-150 0" type="hinge"/>
-        <geom fromto="0 0.10 1.05 0 0.10 0.6" name="thigh_left_geom" rgba=".7 .3 .6 1" size="0.05" type="capsule"/>
+        <joint axis="0 -1 0" name="thigh_left_joint" pos="0 0.10 1.25" range="-150 0" type="hinge"/>
+        <geom fromto="0 0.10 1.25 0 0.10 0.8" name="thigh_left_geom" rgba=".7 .3 .6 1" size="0.05" type="capsule"/>
         <body name="leg_left">
-          <joint axis="0 -1 0" name="leg_left_joint" pos="0 0.10 0.6" range="-150 0" type="hinge"/>
-          <geom fromto="0 0.10 0.6 0 0.10 0.1" name="leg_left_geom" rgba=".7 .3 .6 1" size="0.04" type="capsule"/>
+          <joint axis="0 -1 0" name="leg_left_joint" pos="0 0.10 0.8" range="-150 0" type="hinge"/>
+          <geom fromto="0 0.10 0.8 0 0.10 0.3" name="leg_left_geom" rgba=".7 .3 .6 1" size="0.04" type="capsule"/>
           <body name="foot_left">
-            <joint axis="0 -1 0" name="foot_left_joint" pos="0 0.10 0.1" range="-45 45" type="hinge"/>
-            <geom fromto="-0.0 0.10 0.1 0.2 0.10 0.1" name="foot_left_geom" rgba=".7 .3 .6 1" size="0.06" type="capsule"/>
+            <joint axis="0 -1 0" name="foot_left_joint" pos="0 0.10 0.3" range="-45 45" type="hinge"/>
+            <geom fromto="-0.0 0.10 0.3 0.2 0.10 0.3" name="foot_left_geom" rgba=".7 .3 .6 1" size="0.06" type="capsule"/>
           </body>
         </body>
       </body>
