@@ -8,7 +8,6 @@ import argparse
 import cust_envs
 import gym
 import numpy as np
-import pybullet
 import time
 
 
