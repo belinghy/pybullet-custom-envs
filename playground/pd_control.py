@@ -16,14 +16,16 @@ class PDController:
 
     def __init__(self, env):
         self.action_dim = env.action_space.shape[0]
-        self.k_p = 0.25
-        self.k_d = 0.25
+        self.high = env.action_space.high
+        self.low = env.action_space.low
+        self.k_p = 10
+        self.k_d = 1
 
     def drive_torques(self, targets, states):
         # States and targets should be [theta, omega] * action_dim
         diff = targets - states
         torques = self.k_p * diff[0::2] + self.k_d * diff[1::2]
-        return torques
+        return np.clip(torques, self.low, self.high)
 
 
 def parse_args():
@@ -36,16 +38,26 @@ def parse_args():
     return parser.parse_args()
 
 
-def compute_targets(action_dim):
-    # Everything is normalized
+def compute_targets(env):
+    action_dim = env.action_space.shape[0]
 
-    targets = np.array(
-        [
-            np.array([-1, -1, -1, -1, -1, -1]),  # split,
-            np.array([0, 0, 0, 0, 0, 0]),  # frog
-            np.array([1, -1, 0, 1, -1, 0]),  # tall stance
-        ]
-    )
+    # Everything is normalized
+    if env.spec.id == 'Crab2DCustomEnv-v0':
+        targets = np.array(
+            [
+                [-1, -1, -1, -1, -1, -1],  # split,
+                [0, 0, 0, 0, 0, 0],  # frog
+                [1, -1, 0, 1, -1, 0],  # tall stance
+            ]
+        )
+    elif env.spec.id == 'Walker2DCustomEnv-v0':
+        targets = np.array(
+            [
+                [1, 1, 0, -1, 1, 0],  # split
+                [-1, 1, 0, 1, 1, 0], # split
+                [1, 1, 0, 1, 1, 0],  # tall stance
+            ]
+        )
     random_choice = np.random.choice(targets.shape[0], 1)
 
     target_thetas = targets[random_choice]
@@ -67,25 +79,24 @@ def main():
 
     # Needs to be called after every reset
     bullet_client = env.unwrapped._p
-    bullet_client.setGravity(0, 0, 0)
+    bullet_client.setGravity(0, 0, -9.8)
 
     # Init setup
     action_dim = env.action_space.shape[0]
     controller = PDController(env)
-    targets = compute_targets(action_dim)
+    targets = compute_targets(env)
 
     while True:
-
         # Extract angles and velocities
         thetas_and_omegas = obs[8 : 8 + 2 * action_dim]
-        if np.linalg.norm(targets - thetas_and_omegas, 1) / np.size(targets) < 1e-2:
+        if np.linalg.norm(targets - thetas_and_omegas, 1) / np.size(targets) < 0.1:
             # Converged to target pose
-            targets = compute_targets(action_dim)
+            targets = compute_targets(env)
         action = controller.drive_torques(targets, thetas_and_omegas)
 
         time.sleep(1. / 60.)
         # Had to hack camera_adjust() in WalkerBaseBulletEnv
-        env.unwrapped.camera_adjust(distance=5)
+        # env.unwrapped.camera_adjust(distance=5)
 
         obs, r, done, _ = env.step(action)
 
