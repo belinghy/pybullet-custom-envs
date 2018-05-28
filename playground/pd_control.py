@@ -18,8 +18,10 @@ class PDController:
         self.action_dim = env.action_space.shape[0]
         self.high = env.action_space.high
         self.low = env.action_space.low
-        self.k_p = 10
-        self.k_d = 1
+        frequency = 2
+        self.k_p = (2 * np.pi * frequency) ** 2
+        damping_ratio = 1
+        self.k_d = 2 * damping_ratio * 2 * np.pi * frequency
 
     def drive_torques(self, targets, states):
         # States and targets should be [theta, omega] * action_dim
@@ -42,7 +44,7 @@ def compute_targets(env):
     action_dim = env.action_space.shape[0]
 
     # Everything is normalized
-    if env.spec.id == 'Crab2DCustomEnv-v0':
+    if env.spec.id == "Crab2DCustomEnv-v0":
         targets = np.array(
             [
                 [-1, -1, -1, -1, -1, -1],  # split,
@@ -50,11 +52,11 @@ def compute_targets(env):
                 [1, -1, 0, 1, -1, 0],  # tall stance
             ]
         )
-    elif env.spec.id == 'Walker2DCustomEnv-v0':
+    elif env.spec.id == "Walker2DCustomEnv-v0":
         targets = np.array(
             [
                 [1, 1, 0, -1, 1, 0],  # split
-                [-1, 1, 0, 1, 1, 0], # split
+                [-1, 1, 0, 1, 1, 0],  # split
                 [1, 1, 0, 1, 1, 0],  # tall stance
             ]
         )
