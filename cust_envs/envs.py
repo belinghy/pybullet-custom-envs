@@ -2,6 +2,8 @@ from .scene_stadium import SinglePlayerStadiumScene
 from .env_bases import MJCFBaseBulletEnv
 import numpy as np
 import pybullet
+import gym
+import time
 from .robots import Walker2D, Crab2D
 
 
@@ -164,3 +166,95 @@ class Crab2DCustomEnv(WalkerBaseBulletEnv):
     def __init__(self):
         self.robot = Crab2D()
         WalkerBaseBulletEnv.__init__(self, self.robot)
+
+
+class PDCrab2DCustomEnv(Crab2DCustomEnv):
+    '''
+        Just `Crab2DCustomEnv` but driven with a PDcontroller
+        The control step is actually `nb_pd_steps` times faster than the original
+    '''
+    def __init__(self, nb_pd_steps=5):  # TODO: how to get nb_pd_steps from the code?
+        super(PDCrab2DCustomEnv, self).__init__()
+        self.nb_pd_steps = nb_pd_steps
+        self.pd_controller = PDController(self)
+        self.render_mode = None
+
+    def _render(self, mode, *args, **kwargs):
+        super(PDCrab2DCustomEnv, self)._render(mode=mode, *args, **kwargs)
+        self.render_mode = mode
+    
+    @property
+    def get_num_joints(self):
+        return len(self.robot.ordered_joints)
+    
+    def get_joints_state(self):
+        thetas_and_omegas = self.robot.calc_state()[8 : 8 + 2 * self.get_num_joints]
+        return thetas_and_omegas[0::2], thetas_and_omegas[1::2]
+
+    def _step(self, action):
+        thetas, omegas = self.get_joints_state()
+
+        done = False
+        reward = 0
+        velocities = np.zeros(3)
+        sum_omegas = np.zeros(omegas.shape[0])  # required to calculate the mean of the omegas
+
+        for _ in range(self.nb_pd_steps):    
+            if not done:
+                # drive the motors with PD angles
+                torques = self.pd_controller.drive_torques(action, thetas, omegas)
+                obs, r, done, _ = super(PDCrab2DCustomEnv, self)._step(torques)
+            else:
+                # stop driving motors after the episode ends
+                obs, r, _, _ = super(PDCrab2DCustomEnv, self)._step(np.zeros(action.shape[0]))
+
+            # accumulate velocities to output the correct state
+            thetas, omegas = self.get_joints_state()
+            sum_omegas += omegas
+            velocities += obs[3:6]
+            reward += r
+
+            # the motion looks too fast for human eye. just a hack to make it seem like a realtime simulation
+            if self.render_mode == 'human':
+                time.sleep(1. / 60.)
+
+        # take the mean of the velocities as the observed value
+        obs[3:6] = velocities / self.nb_pd_steps
+        obs[9 : 9 + 2*self.get_num_joints : 2] = sum_omegas / self.nb_pd_steps
+
+        return obs, reward/self.nb_pd_steps, done, {}
+
+
+class NabiRosCustomEnv(PDCrab2DCustomEnv):
+    '''
+        Just `PDCrab2DCustomEnv` with the feet fixed
+        the feet use a PDController, so it's more like a spring/damper than a rigid body
+
+        It's supposed to be something (kinda) like the NABI-Ros robot: https://www.youtube.com/watch?v=Y5UoQsHJskw
+
+        TODO: increase the PD coefficients for the feet
+    '''
+    def __init__(self, *args, **kwargs):
+        super(NabiRosCustomEnv, self).__init__(*args, **kwargs)
+        self.action_space = gym.spaces.Box(self.action_space.low[:-2], self.action_space.high[:-2])
+
+    def _step(self, action):
+        return super(NabiRosCustomEnv, self)._step(np.concatenate([action[0:2], [0], action[2:4], [0]]))
+
+
+class PDController:
+
+    def __init__(self, env):
+        self.action_dim = env.action_space.shape[0]
+        self.high = env.action_space.high
+        self.low = env.action_space.low
+        frequency = 2
+        self.k_p = (2 * np.pi * frequency) ** 2
+        damping_ratio = 1
+        self.k_d = 2 * damping_ratio * 2 * np.pi * frequency
+
+    def drive_torques(self, target_thetas, thetas, omegas):
+        # States and targets should be [theta, omega] * action_dim
+        diff = target_thetas - thetas
+        torques = self.k_p * diff + self.k_d * omegas
+        return np.clip(torques, self.low, self.high)
