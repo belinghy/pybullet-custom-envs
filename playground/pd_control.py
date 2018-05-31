@@ -1,6 +1,6 @@
 import os
 
-current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+current_dir = os.path.dirname(os.path.realpath(__file__))
 parent_dir = os.path.dirname(current_dir)
 os.sys.path.append(parent_dir)
 
@@ -89,7 +89,7 @@ def main():
 
     while True:
         # Extract angles and velocities
-        thetas_and_omegas = obs[8 : 8 + 2 * action_dim]
+        thetas_and_omegas = obs[8: 8 + 2 * action_dim]
         if np.linalg.norm(targets - thetas_and_omegas, 1) / np.size(targets) < 0.1:
             # Converged to target pose
             targets = compute_targets(env)

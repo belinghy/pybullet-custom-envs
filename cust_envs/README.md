@@ -7,25 +7,6 @@ Somethings were modified using code from the newest PyBullet branch, and some co
 
 Some things to be mindful of: contact detection via conaffinity, condim, and contype, size, density, and mass. Full mujoco documentation at: http://www.mujoco.org/book/modeling.html.
 
-To use the Crab2D and Walker2D,
-```python
-import gym
-import cust_envs  # Will register environments with gym
-
-env = gym.make("Crab2DCustomEnv-v0")  # or Walker2DCustomEnv-v0
-```  
-
-Could be useful for debugging,
-```python
-robot_id = -1
-for i in range(bullet_client.getNumBodies()):
-    if bullet_client.getBodyInfo(i)[1].decode() == 'walker2d':
-        robot_id = i
-
-print(bullet_client.getDynamicsInfo(robot_id, -1))
-print(bullet_client.getLinkState(robot_id, link_id))
-```
-
 ### 2018-05-23
 Commit: `b00aa9579e1c32083954e2690cba4d0e2d9c68b2`
 * Added `Crab2DCustomEnv-v0` which is just modified from Walker2D; still need `pybullet_envs`, but shouldn't need `pybullet_data`.
