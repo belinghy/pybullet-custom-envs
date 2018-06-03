@@ -16,3 +16,7 @@ Commit: `b00aa9579e1c32083954e2690cba4d0e2d9c68b2`
 Commit: `435581386ae0b6d6e62be692a1d7f32da8f9ebde`
 * Fixed some camera control issue
 * Added simple PD controller test for Crab2D environment
+
+### 2018-06-03
+Commit: `aadf8327801252ada9d27b48b93cf3b236385184`
+* Added `is_balanced()` for Crab2D robot class.
