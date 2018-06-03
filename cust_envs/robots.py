@@ -139,3 +139,25 @@ class Crab2D(WalkerBase):
         WalkerBase.robot_specific_reset(self, bullet_client)
         for n in ["foot_joint", "foot_left_joint"]:
             self.jdict[n].power_coef = 30.0
+
+    def is_balanced(self):
+        """ Check whether robot is balanced using centre of mass and feet position """
+        # robot.body_xyz is good proxy for centre of mass
+        # (except for z, which is position of pelvis)
+        if (self.feet_contact != np.ones(self.feet_contact.shape)).any():
+            # If _any_ foot is not in contact, then return unbalanced
+            return False
+        else:
+            # If _both_ foot are in contact, check if centre of mass lies in bounding box
+            left_x, right_x = float("inf"), -float("inf")
+            for _, foot in enumerate(self.feet):
+                # First foot is "foot_left_geom", second is "foot_geom"
+                contacts = foot.contact_list()  # Non-empty if foot touching ground
+                contact_info = contacts[0]  # Ground
+                # Position 6 contains (x,y,z) of contact in world coordinates
+                x, _, _ = contact_info[6]
+                left_x = x if x <= left_x else left_x
+                right_x = x if x >= right_x else right_x
+
+            x, _, _ = self.body_xyz
+            return left_x <= x <= right_x
