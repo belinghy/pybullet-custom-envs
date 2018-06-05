@@ -133,7 +133,7 @@ class Crab2D(WalkerBase):
         )
 
     def alive_bonus(self, z, pitch):
-        return +1 if z > 0.8 and abs(pitch) < 1.0 else -1
+        return +1 if z > 0.45 and abs(pitch) < 1.0 else -1
 
     def robot_specific_reset(self, bullet_client):
         WalkerBase.robot_specific_reset(self, bullet_client)
