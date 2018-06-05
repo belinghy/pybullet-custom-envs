@@ -167,6 +167,9 @@ class Crab2DCustomEnv(WalkerBaseBulletEnv):
         self.robot = Crab2D()
         WalkerBaseBulletEnv.__init__(self, self.robot)
 
+    def set_gravity(self, g):
+        self._p.setGravity(0, 0, g)
+
 
 class PDCrab2DCustomEnv(Crab2DCustomEnv):
     """
@@ -206,11 +209,12 @@ class PDCrab2DCustomEnv(Crab2DCustomEnv):
             if not done:
                 # drive the motors with PD angles
                 torques = self.pd_controller.drive_torques(action, thetas, omegas)
-                obs, r, done, _ = super(PDCrab2DCustomEnv, self)._step(torques)
+                obs, r, done, _ = super()._step(torques)
             else:
                 # stop driving motors after the episode ends
-                obs, r, _, _ = super(PDCrab2DCustomEnv, self)._step(
-                    np.zeros(action.shape[0])
+                # print('episode has ended')
+                obs, r, _, _ = super()._step(
+                    np.zeros(len(action))
                 )
 
             # accumulate velocities to output the correct state
@@ -260,11 +264,15 @@ class PDController:
         self.low = env.action_space.low
         frequency = 2
         self.k_p = (2 * np.pi * frequency) ** 2
-        damping_ratio = 1
+        damping_ratio = 2
         self.k_d = 2 * damping_ratio * 2 * np.pi * frequency
 
     def drive_torques(self, target_thetas, thetas, omegas):
         # States and targets should be [theta, omega] * action_dim
         diff = target_thetas - thetas
-        torques = self.k_p * diff + self.k_d * omegas
-        return np.clip(torques, self.low, self.high)
+        torques = self.k_p * diff - self.k_d * omegas
+        return np.clip(
+            torques / 40,
+            self.low,
+            self.high
+        )
