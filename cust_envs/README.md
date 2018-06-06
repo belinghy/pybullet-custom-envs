@@ -20,3 +20,9 @@ Commit: `435581386ae0b6d6e62be692a1d7f32da8f9ebde`
 ### 2018-06-03
 Commit: `aadf8327801252ada9d27b48b93cf3b236385184`
 * Added `is_balanced()` for Crab2D robot class.
+
+### 2018-06-06
+Commit: `726760866cec8f107f30a00ec8f45bccdd3d3a4d`
+* Changed balance logic: When neither or both feet are on the ground, then use CoM; otherwise, as long as robot is shifting towards balance then it is considered balanced.
+* Added keyboard control `1` in rendered environments to show contact forces and CoM velocities.  This slows done the rendering a lot.
+
