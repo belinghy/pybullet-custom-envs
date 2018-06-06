@@ -127,13 +127,13 @@ class Walker2D(WalkerBase):
 class Crab2D(WalkerBase):
     foot_list = ["foot", "foot_left"]
 
-    def __init__(self):
+    def __init__(self, obs_dim=22):
         WalkerBase.__init__(
-            self, "crab2d.xml", "pelvis", action_dim=6, obs_dim=22, power=0.40
+            self, "crab2d.xml", "pelvis", action_dim=6, obs_dim=obs_dim, power=0.40
         )
 
     def alive_bonus(self, z, pitch):
-        return +1 if z > 0.45 and abs(pitch) < 1.0 else -1
+        return +1 if z > 0.2 and abs(pitch) < 1.0 else -1
 
     def robot_specific_reset(self, bullet_client):
         WalkerBase.robot_specific_reset(self, bullet_client)
@@ -141,23 +141,65 @@ class Crab2D(WalkerBase):
             self.jdict[n].power_coef = 30.0
 
     def is_balanced(self):
-        """ Check whether robot is balanced using centre of mass and feet position """
-        # robot.body_xyz is good proxy for centre of mass
-        # (except for z, which is position of pelvis)
-        if (self.feet_contact != np.ones(self.feet_contact.shape)).any():
-            # If _any_ foot is not in contact, then return unbalanced
-            return False
-        else:
-            # If _both_ foot are in contact, check if centre of mass lies in bounding box
-            left_x, right_x = float("inf"), -float("inf")
-            for _, foot in enumerate(self.feet):
-                # First foot is "foot_left_geom", second is "foot_geom"
-                contacts = foot.contact_list()  # Non-empty if foot touching ground
-                contact_info = contacts[0]  # Ground
-                # Position 6 contains (x,y,z) of contact in world coordinates
-                x, _, _ = contact_info[6]
-                left_x = x if x <= left_x else left_x
-                right_x = x if x >= right_x else right_x
+        """ Check whether robot is balanced using centre of mass and feet position.
+            Second return value is the foot that should be moved to maintain balance. """
 
+        all_contact = (self.feet_contact == np.ones(self.feet_contact.shape)).all()
+        none_contact = (self.feet_contact == np.zeros(self.feet_contact.shape)).all()
+        if all_contact or none_contact:
+            # If _both_ or _neither_ foot are in contact, check if centre of mass lies in bounding box
+            left_x, right_x = float("inf"), -float("inf")
+            for i, in_contact in enumerate(self.feet_contact):
+                foot = self.feet[i]
+                if in_contact:
+                    # First foot is "foot_left_geom", second is "foot_geom"
+                    contacts = foot.contact_list()  # Non-empty if foot touching ground
+                    contact_info = contacts[0]  # Ground
+                    # Position 6 contains (x,y,z) of contact in world coordinates
+                    x, _, _ = contact_info[6]
+                    left_x = x if x <= left_x else left_x
+                    right_x = x if x >= right_x else right_x
+                else:
+                    x, _, _ = foot.pose().xyz()
+                    left_x = x if x <= left_x else left_x
+                    right_x = x if x >= right_x else right_x
+
+            # Centre of mass
             x, _, _ = self.body_xyz
-            return left_x <= x <= right_x
+            # mask return 1 for foot not in contact
+            mask = np.array([0. if x <= right_x else 1., 0. if left_x <= x else 1.])
+            return left_x <= x <= right_x, mask
+        else:
+            # If one of the feet is not in contact, we want body to not sway past the contacting foot
+            com_vx, _, _ = self.robot_body.speed()
+            com_x, _, _ = self.body_xyz
+
+            # mask return 1 for foot not in contact
+            mask = np.ones(self.feet_contact.shape) - self.feet_contact
+
+            if self.feet_contact[0] == 1:
+                # Right foot in contact
+                foot = self.feet[0]
+            else:
+                # Left foot in contact
+                foot = self.feet[1]
+
+            # Get contact info
+            contacts = foot.contact_list()
+            contact_info = contacts[0]
+            # Position 6 contains (x,y,z) of contact in world coordinates
+            foot_x, _, _ = contact_info[6]
+            foot_vx, _, _ = foot.speed()
+
+            if self.feet_contact[0] == 1:
+                # Right foot in contact
+                # 1. CoM on the left side of right foot
+                # 2. CoM on the right side, but is moving to towards balance
+                delta_x = com_x - foot_x
+                delta_nx = (com_x + com_vx) - (foot_x + foot_vx)
+                return delta_x <= 0 or (delta_x > 0 and delta_nx <= delta_x), mask
+            else:
+                # Left foot in contact
+                delta_x = com_x - foot_x
+                delta_nx = (com_x + com_vx) - (foot_x + foot_vx)
+                return delta_x >= 0 or (delta_x < 0 and delta_nx >= delta_x), mask

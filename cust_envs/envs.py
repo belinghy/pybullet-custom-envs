@@ -17,6 +17,7 @@ class WalkerBaseBulletEnv(MJCFBaseBulletEnv):
         self.walk_target_x = 1e3  # kilometer away
         self.walk_target_y = 0
         self.stateId = -1
+        self.debug = False
 
     def create_single_player_scene(self, bullet_client):
         self.stadium_scene = SinglePlayerStadiumScene(
@@ -104,6 +105,20 @@ class WalkerBaseBulletEnv(MJCFBaseBulletEnv):
             if self.ground_ids & contact_ids:
                 # see Issue 63: https://github.com/openai/roboschool/issues/63
                 # feet_collision_cost += self.foot_collision_cost
+                if self.isRender and self.debug:
+                    [
+                        self._p.addUserDebugLine(
+                            x,
+                            x + y*z/100,
+                            lineColorRGB=(1, 0, 0),
+                            lineWidth=5,
+                            lifeTime=1. / 60.,
+                        )
+                        for x, y, z in map(
+                            lambda x: (np.array(x[6]), np.array(x[7]), x[9]),
+                            f.contact_list(),
+                        )
+                    ]
                 self.robot.feet_contact[i] = 1.0
             else:
                 self.robot.feet_contact[i] = 0.0
@@ -136,11 +151,30 @@ class WalkerBaseBulletEnv(MJCFBaseBulletEnv):
             joints_at_limit_cost,
             feet_collision_cost,
         ]
+
         if debugmode:
             print("rewards=")
             print(self.rewards)
             print("sum rewards")
             print(sum(self.rewards))
+
+        keys = self._p.getKeyboardEvents()
+        if ord('1') in keys and keys[ord('1')] == self._p.KEY_WAS_RELEASED:
+            # keys is a dict, so need to check key exists
+            self.debug = not self.debug
+
+        if self.isRender and self.debug:
+            x, y, z = self.robot.body_xyz
+            vx, vy, vz = self.robot_body.speed()
+            self._p.addUserDebugLine(
+                (x,y,z),
+                (x+vx, y+vy, z+vz),
+                lineColorRGB=(0, 0, 1),
+                lineWidth=5,
+                lifeTime=1. / 60.,
+            )
+
+
         self.HUD(state, a, done)
         self.reward += sum(self.rewards)
 
@@ -167,8 +201,40 @@ class Crab2DCustomEnv(WalkerBaseBulletEnv):
         self.robot = Crab2D()
         WalkerBaseBulletEnv.__init__(self, self.robot)
 
-    def set_gravity(self, g):
-        self._p.setGravity(0, 0, g)
+
+class Crab2DBalanceEnv(WalkerBaseBulletEnv):
+
+    def __init__(self):
+        self.robot = Crab2D(obs_dim=23)  # One more for is_balanced
+        WalkerBaseBulletEnv.__init__(self, self.robot)
+
+    def _reset(self):
+        state = super(Crab2DBalanceEnv, self)._reset()
+        is_balanced, _ = self.robot.is_balanced()
+        return np.concatenate((state, [1 if is_balanced else 0]))
+
+    def _step(self, a, preroutine=None):
+        if preroutine is not None:
+            preroutine()
+
+        # Check before performing action
+        was_balanced, _ = self.robot.is_balanced()
+
+        state, reward, done, info = super(Crab2DBalanceEnv, self)._step(a)
+
+        # After performing action
+        is_balanced, _ = self.robot.is_balanced()
+
+        # If robot was not balanced, we should reward for returning to balance.
+        # Encouraging regaining balance should also encourage losing balance in the first place?
+        if not was_balanced:
+            reward += 1. if is_balanced else 0.
+
+        # Terminate if becoming unbalanced
+        done = not is_balanced
+
+        state = np.concatenate((state, [1 if is_balanced else 0]))
+        return state, reward, done, info
 
 
 class PDCrab2DCustomEnv(Crab2DCustomEnv):
@@ -209,12 +275,11 @@ class PDCrab2DCustomEnv(Crab2DCustomEnv):
             if not done:
                 # drive the motors with PD angles
                 torques = self.pd_controller.drive_torques(action, thetas, omegas)
-                obs, r, done, _ = super()._step(torques)
+                obs, r, done, _ = super(PDCrab2DCustomEnv, self)._step(torques)
             else:
                 # stop driving motors after the episode ends
-                # print('episode has ended')
-                obs, r, _, _ = super()._step(
-                    np.zeros(len(action))
+                obs, r, _, _ = super(PDCrab2DCustomEnv, self)._step(
+                    np.zeros(action.shape[0])
                 )
 
             # accumulate velocities to output the correct state
@@ -264,15 +329,11 @@ class PDController:
         self.low = env.action_space.low
         frequency = 2
         self.k_p = (2 * np.pi * frequency) ** 2
-        damping_ratio = 2
+        damping_ratio = 1
         self.k_d = 2 * damping_ratio * 2 * np.pi * frequency
 
     def drive_torques(self, target_thetas, thetas, omegas):
         # States and targets should be [theta, omega] * action_dim
         diff = target_thetas - thetas
-        torques = self.k_p * diff - self.k_d * omegas
-        return np.clip(
-            torques / 40,
-            self.low,
-            self.high
-        )
+        torques = self.k_p * diff + self.k_d * omegas
+        return np.clip(torques, self.low, self.high)
