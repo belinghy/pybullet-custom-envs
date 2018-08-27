@@ -19,8 +19,8 @@
           <joint axis="0 1 0" name="leg_joint" pos="0.55 0 0.85" range="-90 30" type="hinge"/>
           <geom fromto="0.55 0 0.85 0.55 0 0.30" name="leg_geom" size="0.04" type="capsule"/>
           <body name="foot">
-            <joint axis="0 1 0" name="foot_joint" pos="0.55 0 0.30" range="-45 45" type="hinge"/>
-            <geom fromto="0.55 0 0.30 0.75 0 0.30" name="foot_geom" size="0.06" type="capsule"/>
+            <joint axis="0 1 0" name="foot_joint" pos="0.55 0 0.30" range="-30 30" type="hinge"/>
+            <geom fromto="0.55 0 0.30 0.65 0 0.30" name="foot_geom" size="0.06" type="capsule"/>
           </body>
         </body>
       </body>
@@ -31,8 +31,8 @@
           <joint axis="0 -1 0" name="leg_left_joint" pos="-0.55 0 0.85" range="-90 30" type="hinge"/>
           <geom fromto="-0.55 0 0.85 -0.55 0 0.30" name="leg_left_geom" rgba=".7 .3 .6 1" size="0.04" type="capsule"/>
           <body name="foot_left">
-            <joint axis="0 -1 0" name="foot_left_joint" pos="-0.55 0 0.30" range="-45 45" type="hinge"/>
-            <geom fromto="-0.55 0 0.30 -0.75 0 0.30" name="foot_left_geom" rgba=".7 .3 .6 1" size="0.06" type="capsule"/>
+            <joint axis="0 -1 0" name="foot_left_joint" pos="-0.55 0 0.30" range="-30 30" type="hinge"/>
+            <geom fromto="-0.55 0 0.30 -0.65 0 0.30" name="foot_left_geom" rgba=".7 .3 .6 1" size="0.06" type="capsule"/>
           </body>
         </body>
       </body>

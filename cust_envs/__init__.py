@@ -24,6 +24,13 @@ register(
 )
 
 register(
+    id="Crab2DBalanceEnv-v0",
+    entry_point="cust_envs.envs:Crab2DBalanceEnv",
+    max_episode_steps=1000,
+    reward_threshold=2500.0,
+)
+
+register(
     id="PDCrab2DCustomEnv-v0",
     entry_point="cust_envs.envs:PDCrab2DCustomEnv",
     max_episode_steps=1000,
